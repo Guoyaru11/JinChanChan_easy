@@ -58,5 +58,151 @@
 建一个新项目，把所有文件copy过去（具体原因我也不太清楚）
 ②其他问题暂时还没有遇到，发现其他问题可在讨论区留言
 
+
+
+
+
+
+
+# RAG问答系统完整使用指南
+
+## 1. 环境配置
+
+### 1.1 系统要求
+- **操作系统**：Linux/Windows/macOS
+- **Python版本**：≥3.8
+- **硬件配置**：
+  - 内存：≥8GB（推荐16GB）
+  - 存储：≥10GB可用空间
+
+### 1.2 安装步骤
+```bash
+# 克隆代码仓库
+git clone https://github.com/your-repo/rag-system.git
+
+# 进入项目目录
+cd rag-system
+
+# 创建虚拟环境（可选）
+python -m venv venv
+source venv/bin/activate  # Linux/macOS
+venv\Scripts\activate    # Windows
+
+# 安装依赖
+pip install -r requirements.txt
+2. 快速入门
+2.1 首次运行准备
+将文档放入documents/文件夹
+
+配置API密钥：
+
+python
+# config.py
+API_KEY = "your_deepseek_api_key_here"
+2.2 启动服务
+bash
+# 开发模式
+python app.py
+
+# 生产模式（需要gunicorn）
+gunicorn -w 4 -b 0.0.0.0:5000 app:app
+2.3 访问方式
+Web界面：http://localhost:5000/static/index.html
+
+API端点：http://localhost:5000/api/search
+
+3. 详细使用说明
+3.1 文档管理
+支持格式：
+格式类型	扩展名	说明
+纯文本	.txt	UTF-8编码
+PDF文档	.pdf	支持多页
+Word文档	.docx	2007+格式
+文档更新流程：
+添加/更新文档到documents/目录
+
+清除缓存：
+
+bash
+rm -rf cache/
+重启服务
+
+3.2 配置调优
+python
+# config.py 关键参数
+
+# 文档处理
+CHUNK_SIZE = 512      # 文本分块大小（字符）
+CHUNK_OVERLAP = 50    # 块间重叠量
+
+# 检索设置
+TOP_K = 5             # 初始检索结果数
+RERANK_TOP_K = 3      # 重排序结果数
+
+# 模型设置
+EMBEDDING_MODEL = "bge-small-zh"
+LLM_TEMPERATURE = 0.3  # 生成多样性控制
+4. API接口规范
+4.1 搜索接口
+Endpoint: POST /api/search
+
+请求示例：
+
+json
+{
+  "question": "RAG系统的工作原理是什么？",
+  "top_k": 3,
+  "stream": false
+}
+响应示例：
+
+json
+{
+  "status": "success",
+  "data": {
+    "answer": "RAG系统通过结合检索和生成...",
+    "sources": [
+      {
+        "file": "tech_whitepaper.pdf",
+        "page": 12,
+        "content": "在RAG架构中...",
+        "score": 0.92
+      }
+    ],
+    "latency": 1.25
+  }
+}
+5. 高级功能
+5.1 批量处理模式
+bash
+python batch_processor.py \
+  --input queries.jsonl \
+  --output results/ \
+  --workers 4
+5.2 监控指标
+bash
+# 查看系统状态
+curl http://localhost:5000/status
+
+# 获取性能指标
+curl http://localhost:5000/metrics
+6. 常见问题解答
+6.1 性能优化建议
+GPU加速：
+
+bash
+pip install faiss-gpu torch==2.0.1+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
+索引优化：
+
+减小CHUNK_SIZE（适合精确搜索）
+
+增大TOP_K（适合召回率优先）
+
+6.2 错误排查
+错误现象	解决方案
+模型加载失败	检查model/目录权限
+文档解析错误	验证文件编码（推荐UTF-8）
+API限额超限	调整config.py中的速率限制
+
 ## 四、未来计划
 将微调PaddleOCR模型实现文字检测，达到更高准确率
