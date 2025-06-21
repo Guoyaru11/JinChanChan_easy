@@ -64,145 +64,87 @@
 
 
 
-# RAG问答系统完整使用指南
+# RAG 问答系统项目文档
 
-## 1. 环境配置
+## 项目概述
+这是一个基于检索增强生成（RAG）的问答系统，能够根据用户的问题从文档库中检索相关信息并生成准确回答。系统结合了 BM25 词袋模型和语义向量检索的混合检索策略，并通过重排序模型优化检索结果，最后利用大语言模型生成自然语言回答。
 
-### 1.1 系统要求
-- **操作系统**：Linux/Windows/macOS
-- **Python版本**：≥3.8
-- **硬件配置**：
-  - 内存：≥8GB（推荐16GB）
-  - 存储：≥10GB可用空间
+## 目录结构说明
 
-### 1.2 安装步骤
-```bash
-# 克隆代码仓库
-git clone https://github.com/your-repo/rag-system.git
+### 主要文件夹
+- `cache/`：缓存处理后的文档和向量索引，避免重复计算
+- `documents/`：存放待检索的文档数据，支持 txt、pdf、docx 格式
+- `html/`：前端界面文件，包含用户交互页面
+- `model/`：存放预训练模型文件，包括嵌入模型和重排序模型
 
-# 进入项目目录
-cd rag-system
+### 主要文件
 
-# 创建虚拟环境（可选）
-python -m venv venv
-source venv/bin/activate  # Linux/macOS
-venv\Scripts\activate    # Windows
+#### 核心功能文件
+- `app.py`：Flask 应用入口，定义 API 接口和 RAG 系统的整体流程
+- `document_loader.py`：文档加载和分割模块，处理不同格式的文档并分割成片段
+- `retriever.py`：检索模块，实现混合检索策略（BM25 + 语义向量）
+- `reranker.py`：重排序模块，对检索结果进行精排序
+- `llm_qa.py`：大语言模型问答模块，生成最终回答
+- `cache_manager.py`：缓存管理模块，负责数据缓存和更新
 
-# 安装依赖
-pip install -r requirements.txt
-2. 快速入门
-2.1 首次运行准备
-将文档放入documents/文件夹
+#### 配置和工具文件
+- `config.py`：系统配置文件，包含路径、模型参数等配置
+- `main.py`：命令行测试入口，用于本地测试系统功能
+- `requirements.txt`：依赖库列表，包含项目所需的所有 Python 包
+- `readme.md`：项目说明文档，包含部署和使用指南
 
-配置API密钥：
+## 各文件详细说明
 
-python
-# config.py
-API_KEY = "your_deepseek_api_key_here"
-2.2 启动服务
-bash
-# 开发模式
-python app.py
+### `app.py`
+Flask 应用的主文件，实现了 API 接口和 RAG 系统的初始化：
+- 定义了`RAGSystem`类，整合文档加载、检索、重排序和 LLM 问答功能
+- 提供`/api/search`接口，接收用户问题并返回回答和支持文档
+- 集成 CORS 支持，允许跨域请求
 
-# 生产模式（需要gunicorn）
-gunicorn -w 4 -b 0.0.0.0:5000 app:app
-2.3 访问方式
-Web界面：http://localhost:5000/static/index.html
+### `cache_manager.py`
+缓存管理模块，主要功能：
+- 提供缓存读写功能，使用 pickle 序列化数据
+- 基于文件哈希值生成缓存键，确保文档更新时缓存失效
+- 管理文档缓存和向量索引缓存，提高系统性能
 
-API端点：http://localhost:5000/api/search
+### `config.py`
+系统配置中心，包含：
+- 路径配置：文档目录、缓存目录等
+- 处理参数：文档分块大小、重叠量等
+- 检索参数：检索数量、重排序数量等
+- 模型配置：嵌入模型、重排序模型、LLM 模型等
+- API 配置：API 密钥、接口地址等
 
-3. 详细使用说明
-3.1 文档管理
-支持格式：
-格式类型	扩展名	说明
-纯文本	.txt	UTF-8编码
-PDF文档	.pdf	支持多页
-Word文档	.docx	2007+格式
-文档更新流程：
-添加/更新文档到documents/目录
+### `document_loader.py`
+文档处理模块，功能包括：
+- 加载不同格式的文档（txt、pdf、docx）
+- 使用 `RecursiveCharacterTextSplitter` 分割文档为固定大小的片段
+- 支持缓存文档片段，避免重复处理
+- 处理中文编码问题，确保文档正确加载
 
-清除缓存：
+### `llm_qa.py`
+大语言模型问答模块：
+- 初始化 `ChatOpenAI` 模型，支持 DeepSeek 等 LLM
+- 定义提示词模板，将检索到的上下文和问题整合为 LLM 输入
+- 处理 LLM 响应，生成最终回答
+- 支持流式响应处理和错误处理
 
-bash
-rm -rf cache/
-重启服务
+### `main.py`
+命令行测试入口：
+- 演示完整的问答流程
+- 用于本地测试系统功能
+- 输出问题、答案和支持文档的详细信息
 
-3.2 配置调优
-python
-# config.py 关键参数
+### `reranker.py`
+重排序模块：
+- 使用 BGE 重排序模型对检索结果进行精排序
+- 构造 "query: 问题 passage: 文档内容" 的输入格式
+- 计算文档与查询的相关性分数
+- 返回排序后的结果
 
-# 文档处理
-CHUNK_SIZE = 512      # 文本分块大小（字符）
-CHUNK_OVERLAP = 50    # 块间重叠量
-
-# 检索设置
-TOP_K = 5             # 初始检索结果数
-RERANK_TOP_K = 3      # 重排序结果数
-
-# 模型设置
-EMBEDDING_MODEL = "bge-small-zh"
-LLM_TEMPERATURE = 0.3  # 生成多样性控制
-4. API接口规范
-4.1 搜索接口
-Endpoint: POST /api/search
-
-请求示例：
-
-json
-{
-  "question": "RAG系统的工作原理是什么？",
-  "top_k": 3,
-  "stream": false
-}
-响应示例：
-
-json
-{
-  "status": "success",
-  "data": {
-    "answer": "RAG系统通过结合检索和生成...",
-    "sources": [
-      {
-        "file": "tech_whitepaper.pdf",
-        "page": 12,
-        "content": "在RAG架构中...",
-        "score": 0.92
-      }
-    ],
-    "latency": 1.25
-  }
-}
-5. 高级功能
-5.1 批量处理模式
-bash
-python batch_processor.py \
-  --input queries.jsonl \
-  --output results/ \
-  --workers 4
-5.2 监控指标
-bash
-# 查看系统状态
-curl http://localhost:5000/status
-
-# 获取性能指标
-curl http://localhost:5000/metrics
-6. 常见问题解答
-6.1 性能优化建议
-GPU加速：
-
-bash
-pip install faiss-gpu torch==2.0.1+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
-索引优化：
-
-减小CHUNK_SIZE（适合精确搜索）
-
-增大TOP_K（适合召回率优先）
-
-6.2 错误排查
-错误现象	解决方案
-模型加载失败	检查model/目录权限
-文档解析错误	验证文件编码（推荐UTF-8）
-API限额超限	调整config.py中的速率限制
-
-## 四、未来计划
-将微调PaddleOCR模型实现文字检测，达到更高准确率
+### `retriever.py`
+检索模块，实现混合检索策略：
+- 结合 BM25 词袋模型和语义向量检索
+- 使用 `SentenceTransformer` 生成文档嵌入向量
+- 使用 `FAISS` 构建向量索引，加速检索过程
+- 实现混合评分机制，结合 BM25 和向量相似度分数
